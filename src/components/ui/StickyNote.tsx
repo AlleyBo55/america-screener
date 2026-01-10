@@ -14,7 +14,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({ onClick }) => {
             whileHover={{ scale: 1.05, rotate: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             onClick={onClick}
-            className="absolute top-1/4 left-[5%] md:left-[8%] w-64 aspect-square bg-[#FFF7D1] shadow-xl p-6 flex flex-col justify-between cursor-pointer origin-top-center font-serif text-gray-800 transform rotate-[2deg]"
+            className="absolute top-1/4 left-[2%] md:left-[3%] w-64 aspect-square bg-[#FFF7D1] shadow-xl p-6 flex flex-col justify-between cursor-pointer origin-top-center font-serif text-gray-800 transform rotate-[2deg]"
             style={{
                 boxShadow: '4px 4px 15px rgba(0,0,0,0.15)',
             }}

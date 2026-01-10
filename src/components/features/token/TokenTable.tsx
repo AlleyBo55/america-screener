@@ -1,15 +1,15 @@
 'use client';
 
-import { TokenPair } from '@/types/token';
+import { TokenPair, SortKey } from '@/types/token';
 import { TokenRow } from './TokenRow';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 
 interface TokenTableProps {
     tokens: TokenPair[];
     isLoading: boolean;
-    sortKey: string;
+    sortKey: SortKey;
     sortDirection: 'asc' | 'desc';
-    onSort: (key: string) => void;
+    onSort: (key: SortKey) => void;
     isMobile?: boolean;
     onTokenSelect: (token: TokenPair) => void;
 }
@@ -30,8 +30,8 @@ export const TokenTable: React.FC<TokenTableProps> = ({
         return sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
     }
 
-    const headers = [
-        { key: 'baseToken.name', label: 'Name', className: 'justify-start w-1/4', paddingLeft: '60px' },
+    const headers: { key: SortKey; label: string; className: string; paddingLeft?: string }[] = [
+        { key: 'name', label: 'Name', className: 'justify-start w-1/4', paddingLeft: '60px' },
         { key: 'price', label: 'Price', className: 'justify-end w-[15%]' },
         { key: 'age', label: 'Age', className: 'justify-end w-[10%]' },
         { key: 'volume', label: 'Volume (24h)', className: 'justify-end w-[15%]' },

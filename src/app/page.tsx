@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { YosemiteWindow } from '@/components/ui/YosemiteWindow';
 import { Dock } from '@/components/layout/Dock';
@@ -8,40 +8,144 @@ import { MobileTabBar } from '@/components/layout/MobileTabBar';
 import { LiveVisitorWidget } from '@/components/ui/LiveVisitorWidget';
 import { TokenDetailView } from '@/components/features/token/TokenDetailView';
 import { FinderContent } from '@/components/features/finder/FinderContent';
+import { FinderStats } from '@/components/features/finder/FinderStats';
 import { DesktopStatsWidget } from '@/components/features/stats/DesktopStatsWidget';
 import { StickyNote } from '@/components/ui/StickyNote';
 import { RateLimitModal } from '@/components/ui/RateLimitModal';
 
-import { TokenPair } from '@/types/token';
-import { useTokenData } from '@/hooks/useTokenData';
+import { TokenPair, SortKey } from '@/types/token';
 import { useRateLimitHandler } from '@/hooks/useRateLimitHandler';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Redux
+import {
+  useAppDispatch,
+  useAppSelector,
+  fetchTokensRequest,
+  refreshTokensRequest,
+  selectTokens,
+  selectIsLoading,
+  selectPage,
+  selectPageSize,
+  selectSortKey,
+  selectSortDirection,
+  selectSearchQuery,
+  setPage,
+  setSortKey,
+  setSearchQuery,
+  selectToken,
+  closeTokenDetail,
+  selectSelectedToken,
+  selectIsOpen,
+  selectRugCheckData,
+  selectHolderData,
+  selectIsLoadingAnalysis,
+} from '@/store';
+
 export default function Home() {
-  // Data Hook
-  const {
-    tokens,
-    paginatedTokens,
-    filteredTokens,
-    loading,
-    setSearchQuery,
-    sortKey,
-    sortDirection,
-    handleSort,
-    currentPage,
-    totalPages,
-    handlePageChange,
-    handleRefresh
-  } = useTokenData();
+  const dispatch = useAppDispatch();
+
+  // Redux state
+  const tokens = useAppSelector(selectTokens);
+  const loading = useAppSelector(selectIsLoading);
+  const page = useAppSelector(selectPage);
+  const pageSize = useAppSelector(selectPageSize);
+  const sortKey = useAppSelector(selectSortKey);
+  const sortDirection = useAppSelector(selectSortDirection);
+  const searchQuery = useAppSelector(selectSearchQuery);
+
+  // Token detail state
+  const selectedToken = useAppSelector(selectSelectedToken);
+  const isDetailOpen = useAppSelector(selectIsOpen);
+  const rugCheckData = useAppSelector(selectRugCheckData);
+  const holderData = useAppSelector(selectHolderData);
+  const isLoadingAnalysis = useAppSelector(selectIsLoadingAnalysis);
 
   // Rate Limit Handler
   const { isRateLimited, retryAfterSeconds, handleCountdownComplete } = useRateLimitHandler();
 
   // View State
-  const [selectedToken, setSelectedToken] = useState<TokenPair | null>(null);
   const [isFinderOpen, setIsFinderOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('tokens');
   const [mobileSearchActive, setMobileSearchActive] = useState(false);
+
+  // Fetch tokens on mount
+  useEffect(() => {
+    dispatch(fetchTokensRequest());
+  }, [dispatch]);
+
+  // Filter tokens based on search
+  const filteredTokens = useMemo(() => {
+    if (!searchQuery) return tokens;
+    const query = searchQuery.toLowerCase();
+    return tokens.filter(
+      (t) =>
+        t.baseToken.name.toLowerCase().includes(query) ||
+        t.baseToken.symbol.toLowerCase().includes(query) ||
+        t.baseToken.address.toLowerCase().includes(query)
+    );
+  }, [tokens, searchQuery]);
+
+  // Sort tokens
+  const sortedTokens = useMemo(() => {
+    const sorted = [...filteredTokens];
+    sorted.sort((a, b) => {
+      // 1. PIN AOL TO TOP
+      const isAolA = a.baseToken.symbol === 'AOL' || a.baseToken.name.includes('AOL');
+      const isAolB = b.baseToken.symbol === 'AOL' || b.baseToken.name.includes('AOL');
+
+      if (isAolA && !isAolB) return -1;
+      if (!isAolA && isAolB) return 1;
+
+      let aVal = 0, bVal = 0;
+      switch (sortKey) {
+        case 'age': aVal = a.ageMinutes; bVal = b.ageMinutes; break;
+        case 'price': aVal = parseFloat(a.priceUsd); bVal = parseFloat(b.priceUsd); break;
+        case 'priceChange': aVal = a.priceChange.h24; bVal = b.priceChange.h24; break;
+        case 'volume': aVal = a.volume.h24; bVal = b.volume.h24; break;
+        case 'liquidity': aVal = a.liquidity.usd; bVal = b.liquidity.usd; break;
+        case 'marketCap': aVal = a.marketCap || a.fdv; bVal = b.marketCap || b.fdv; break;
+        case 'txns': aVal = a.txns.h24.buys + a.txns.h24.sells; bVal = b.txns.h24.buys + b.txns.h24.sells; break;
+        case 'name': return sortDirection === 'asc'
+          ? a.baseToken.name.localeCompare(b.baseToken.name)
+          : b.baseToken.name.localeCompare(a.baseToken.name);
+      }
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+    return sorted;
+  }, [filteredTokens, sortKey, sortDirection]);
+
+  // Paginate tokens
+  const totalPages = Math.ceil(sortedTokens.length / pageSize);
+  const paginatedTokens = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sortedTokens.slice(start, start + pageSize);
+  }, [sortedTokens, page, pageSize]);
+
+  // Handlers
+  const handleSort = useCallback((key: SortKey) => {
+    dispatch(setSortKey(key));
+  }, [dispatch]);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    dispatch(setPage(newPage));
+  }, [dispatch]);
+
+  const handleSearch = useCallback((query: string) => {
+    dispatch(setSearchQuery(query));
+  }, [dispatch]);
+
+  const handleRefresh = useCallback(() => {
+    dispatch(refreshTokensRequest());
+  }, [dispatch]);
+
+  const handleTokenSelect = useCallback((token: TokenPair) => {
+    dispatch(selectToken(token));
+  }, [dispatch]);
+
+  const handleCloseDetail = useCallback(() => {
+    dispatch(closeTokenDetail());
+  }, [dispatch]);
 
   // Handle Tab Change
   const handleTabChange = (tab: string) => {
@@ -50,7 +154,7 @@ export default function Home() {
       setMobileSearchActive(true);
     } else {
       setMobileSearchActive(false);
-      setSearchQuery('');
+      handleSearch('');
     }
   };
 
@@ -59,14 +163,14 @@ export default function Home() {
 
       {/* 1. Menu Bar */}
       <Header
-        onSearch={setSearchQuery}
+        onSearch={handleSearch}
         onRefresh={handleRefresh}
         isLoading={loading}
         isMobileSearchActive={mobileSearchActive}
         onCloseMobileSearch={() => {
           setMobileSearchActive(false);
           setActiveTab('tokens');
-          setSearchQuery('');
+          handleSearch('');
         }}
       />
 
@@ -75,16 +179,19 @@ export default function Home() {
 
         {/* Detail View Overlay (Z-Index High) */}
         <AnimatePresence>
-          {selectedToken && (
+          {isDetailOpen && selectedToken && (
             <TokenDetailView
               token={selectedToken}
-              onClose={() => setSelectedToken(null)}
+              onClose={handleCloseDetail}
+              rugCheckData={rugCheckData}
+              holderData={holderData}
+              isLoadingAnalysis={isLoadingAnalysis}
             />
           )}
         </AnimatePresence>
 
         {/* Desktop: Background Layer */}
-        {!selectedToken && (
+        {!isDetailOpen && (
           <div className="hidden md:block absolute inset-0 z-0 pointer-events-none">
             <AnimatePresence mode="wait">
               {!isFinderOpen ? (
@@ -135,15 +242,15 @@ export default function Home() {
                   <FinderContent
                     loading={loading}
                     paginatedTokens={paginatedTokens}
-                    filteredTokens={filteredTokens}
+                    filteredTokens={sortedTokens}
                     sortKey={sortKey}
                     sortDirection={sortDirection}
                     handleSort={handleSort}
-                    currentPage={currentPage}
+                    currentPage={page}
                     totalPages={totalPages}
                     handlePageChange={handlePageChange}
                     isMobile={false}
-                    onTokenSelect={setSelectedToken}
+                    onTokenSelect={handleTokenSelect}
                   />
                 </YosemiteWindow>
               </div>
@@ -153,15 +260,15 @@ export default function Home() {
                 <FinderContent
                   loading={loading}
                   paginatedTokens={paginatedTokens}
-                  filteredTokens={filteredTokens}
+                  filteredTokens={sortedTokens}
                   sortKey={sortKey}
                   sortDirection={sortDirection}
                   handleSort={handleSort}
-                  currentPage={currentPage}
+                  currentPage={page}
                   totalPages={totalPages}
                   handlePageChange={handlePageChange}
                   isMobile
-                  onTokenSelect={setSelectedToken}
+                  onTokenSelect={handleTokenSelect}
                 />
               </div>
             </>

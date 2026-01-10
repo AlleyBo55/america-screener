@@ -13,6 +13,14 @@ const USD1_TOKEN_ADDRESS = 'USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB';
 // ============================================
 const AOL_PAIR_ADDRESS = '69ZvRfF9K7c9DsRTouisoeKc7G5Lm1Gz4moKgRjGhsJV';
 
+// ============================================
+// BURGER Token Launch Date (baseline for filtering)
+// Only tokens launched AT OR AFTER this timestamp are included
+// BURGER was the first official token after AOL on america.fun
+// Launched June 9, 2025 12:51:48 UTC
+// ============================================
+const BURGER_LAUNCH_TIMESTAMP = 1760053908000;
+
 /**
  * Check if a token address ends with "USA" (america.fun signature)
  */
@@ -254,6 +262,16 @@ export async function getAmericaFunTokens(): Promise<TokenPair[]> {
                 // Must be valid america.fun pair
                 if (!isValidAmericaFunPair(pair)) continue;
 
+                // Filter out tokens older than BURGER (first token after AOL)
+                const pairCreatedAt = pair.pairCreatedAt || 0;
+                if (pairCreatedAt > 0 && pairCreatedAt < BURGER_LAUNCH_TIMESTAMP) {
+                    console.log(`⏩ Skipping old token: ${pair.baseToken?.symbol} (created ${new Date(pairCreatedAt).toISOString()})`);
+                    continue;
+                }
+
+                // Debug log
+                console.log(`✅ Adding: ${pair.baseToken?.symbol} | Base: ${baseAddress.slice(-6)} | Quote: ${pair.quoteToken?.address?.slice(-6)}`);
+
                 seenAddresses.add(baseAddress);
                 allPairs.push(processPair(pair));
             }
@@ -275,6 +293,12 @@ export async function getAmericaFunTokens(): Promise<TokenPair[]> {
 
                 if (seenAddresses.has(baseAddress)) continue;
                 if (!isValidAmericaFunPair(pair)) continue;
+
+                // Filter out tokens older than BURGER
+                const pairCreatedAt = pair.pairCreatedAt || 0;
+                if (pairCreatedAt > 0 && pairCreatedAt < BURGER_LAUNCH_TIMESTAMP) {
+                    continue;
+                }
 
                 seenAddresses.add(baseAddress);
                 allPairs.push(processPair(pair));

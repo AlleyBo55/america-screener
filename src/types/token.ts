@@ -52,13 +52,31 @@ export interface TokenPair {
   bondingCurveProgress?: number; // 0-100, undefined if graduated
   isGraduated: boolean;
   ageMinutes: number;
-  // Optional analysis data (simulated if not available)
+  // Optional analysis data from RugCheck & SolanaFM APIs
   analysis?: {
-    riskScore: number;
+    // RugCheck data
+    riskScore: number;           // 0-100 normalized (higher = safer)
+    riskLevel: 'Good' | 'Warn' | 'Danger' | 'Unknown';
+    risks: Array<{ name: string; description: string; level: string; score: number }>;
+    lpLockedPct: number;
+    freezeAuthority: string | null;
+    mintAuthority: string | null;
+    isVerified: boolean;
+
+    // SolanaFM holder data
+    topHoldersConcentration: number;  // Top 10 holders %
+    holderCount: number;
+    topHolders: Array<{ address: string; percentage: number }>;
+
+    // Legacy fields for compatibility
     auditStatus: string;
     bundlerPercentage: number;
     insiderPercentage: number;
     kolCount: number;
+
+    // Metadata
+    isLoading?: boolean;
+    fetchedAt?: number;
   };
 }
 
@@ -68,7 +86,7 @@ export interface DexScreenerResponse {
 }
 
 // Utility type for sorting
-export type SortKey = 'age' | 'price' | 'priceChange' | 'volume' | 'liquidity' | 'marketCap' | 'txns';
+export type SortKey = 'age' | 'price' | 'priceChange' | 'volume' | 'liquidity' | 'marketCap' | 'txns' | 'name';
 export type SortDirection = 'asc' | 'desc';
 
 export interface SortConfig {

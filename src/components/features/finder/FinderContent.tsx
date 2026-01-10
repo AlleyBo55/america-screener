@@ -3,17 +3,15 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { TokenTable } from '@/components/features/token/TokenTable';
-import { TokenPair } from '@/types/token';
-
-
+import { TokenPair, SortKey } from '@/types/token';
 
 interface FinderContentProps {
     loading: boolean;
     paginatedTokens: TokenPair[];
     filteredTokens: TokenPair[];
-    sortKey: string;
+    sortKey: SortKey;
     sortDirection: 'asc' | 'desc';
-    handleSort: (key: string) => void;
+    handleSort: (key: SortKey) => void;
     currentPage: number;
     totalPages: number;
     handlePageChange: (page: number) => void;
