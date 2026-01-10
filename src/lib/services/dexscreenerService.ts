@@ -49,6 +49,8 @@ function processPair(pair: any): TokenPair {
     const now = Date.now();
     const createdAt = pair.pairCreatedAt || now;
     const ageMinutes = Math.floor((now - createdAt) / 60000);
+    // DEBUG: Log age for first few tokens
+    if (Math.random() < 0.05) console.log(`[DexScreener] Token ${pair.baseToken?.symbol} Age: ${ageMinutes}m (Created: ${new Date(createdAt).toISOString()})`);
 
     return {
         chainId: pair.chainId,
@@ -99,7 +101,7 @@ function processPair(pair: any): TokenPair {
         isAmericaFun: true,
         bondingCurveProgress: pair.bondingCurveProgress,
         isGraduated: pair.bondingCurveProgress === undefined || pair.bondingCurveProgress >= 100,
-        ageMinutes,
+        ageMinutes: ageMinutes, // Populate ageMinutes
     };
 }
 

@@ -242,6 +242,7 @@ export async function getAmericaFunTokens(): Promise<TokenPair[]> {
         'liberty USD1',          // Liberty-related
         'trump USD1',            // Trump-related
         'american USD1',         // American-related
+        'BURGER USD1',           // Baseline token (Explicit fetch)
     ];
 
     for (const query of searchQueries) {

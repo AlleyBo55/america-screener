@@ -33,7 +33,7 @@ const initialState: TokenState = {
     page: 1,
     pageSize: 20,
     sortKey: 'age',
-    sortDirection: 'asc',
+    sortDirection: 'desc',
     searchQuery: '',
 };
 

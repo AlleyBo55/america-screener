@@ -14,7 +14,11 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app = !getApps().length ? initializeApp({
+    ...firebaseConfig,
+    databaseURL: "https://america-screener-default-rtdb.asia-southeast1.firebasedatabase.app" // Hardcoded for immediate fix
+}) : getApp();
+console.log("[Firebase] Init with URL:", "https://america-screener-default-rtdb.asia-southeast1.firebasedatabase.app");
 
 // Initialize Realtime Database and Auth only if config is valid
 let database: any;
