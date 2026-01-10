@@ -16,6 +16,7 @@ America Screener is a specialized token analytics dashboard built for the `ameri
 - **Detailed Analytics**: Deep dive into token metrics, including transaction history (5m, 1h, 6h, 24h).
 - **Security First**: Integrated RugCheck reports with easy-to-read "Safety Scores" and detailed risk breakdowns.
 - **Global Stats**: Aggregated ecosystem metrics (Total Volume, Liquidity, Active Pairs).
+- **Real-Time Presence**: "Live Now" visitor counter powered by Firebase Realtime Database. Tracks active connections in real-time with auto-disconnect cleanup.
 - **Yosemite Aesthetics**: a retro-modern desktop interface layout.
 
 ## Tech Stack
@@ -23,7 +24,16 @@ America Screener is a specialized token analytics dashboard built for the `ameri
 - **Framework**: Next.js 14 (App Router)
 - **Styling**: TailwindCSS & Framer Motion
 - **State Management**: Redux Toolkit & Sagas
+- **Real-Time Database**: Firebase (for visitor counting)
 - **APIs**: DexScreener, RugCheck, SolanaFM
+
+## Setup Real-Time Features
+
+To enable the "Live Visitor" counter:
+1.  Create a **Firebase Project**.
+2.  Enable **Realtime Database**.
+3.  Add your credentials to `.env.local` (see `.env.example`).
+4.  Add the provided `database.rules.json` to your Firebase Rules.
 
 ## Getting Started
 
