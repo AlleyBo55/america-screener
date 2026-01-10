@@ -1,32 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Users } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 export function LiveVisitorWidget() {
-    const [count, setCount] = useState(142);
-
-    useEffect(() => {
-        // Set initial random count
-        setCount(Math.floor(Math.random() * (160 - 110 + 1)) + 110);
-
-        const interval = setInterval(() => {
-            setCount(prev => {
-                // Random fluctuation between -4 and +6
-                const change = Math.floor(Math.random() * 11) - 4;
-                let newCount = prev + change;
-
-                // Keep within realistic bounds for this site
-                if (newCount < 85) newCount = 85 + Math.floor(Math.random() * 5);
-                if (newCount > 340) newCount = 340 - Math.floor(Math.random() * 5);
-
-                return newCount;
-            });
-        }, 3500); // Update every 3.5s
-
-        return () => clearInterval(interval);
-    }, []);
+    const [count] = useState(1); // Real view: just you right now!
 
     return (
         <motion.div
@@ -40,23 +19,19 @@ export function LiveVisitorWidget() {
             </div>
 
             <div className="relative h-12 flex items-center justify-center overflow-hidden mb-1 w-full">
-                <AnimatePresence mode="popLayout">
-                    <motion.div
-                        key={count}
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -20, opacity: 0 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                        className="text-5xl font-thin tracking-tighter tabular-nums absolute"
-                    >
-                        {count.toLocaleString()}
-                    </motion.div>
-                </AnimatePresence>
+                <div className="text-5xl font-thin tracking-tighter tabular-nums absolute">
+                    {count}
+                </div>
             </div>
 
             <div className="flex items-center gap-1.5 text-xs font-medium text-white/60">
                 <Users className="w-3.5 h-3.5" />
                 <span>Visiting</span>
+            </div>
+
+            {/* Tooltip hint */}
+            <div className="absolute -bottom-8 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-white/40 font-mono">
+                (That's you!)
             </div>
         </motion.div>
     );
