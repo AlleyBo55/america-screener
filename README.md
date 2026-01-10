@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/golden-eagle.png" alt="America Screener Logo" width="200" height="200" />
+  <img src="public/ai-eagle-eye.png" alt="America Screener AI Logo" width="200" height="200" />
   
   # America Screener 🦅
   
