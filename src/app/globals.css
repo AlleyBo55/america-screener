@@ -1,26 +1,87 @@
 @import "tailwindcss";
 
+@theme {
+  --color-america-blue: #002D72;
+  --color-america-red: #C8102E;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-helvetica: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --foreground: #1d1d1f;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Yosemite Background */
 body {
-  background: var(--background);
+  background-color: #000;
+  background-image: url('/bg.jpg') !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-helvetica);
+  overflow: hidden;
+}
+
+/* Vibrancy Utilities */
+.vibrancy-light {
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.shadow-yosemite {
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.4);
+}
+
+.shadow-dock {
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.font-retro {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+/* Window Container */
+.window-container {
+  border-radius: 10px;
+  /* Yosemite rounded corners */
+  box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.25),
+    0 30px 60px -30px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Traffic Lights */
+.traffic-lights {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.traffic-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.traffic-light.red {
+  background-color: #FF5F56;
+}
+
+.traffic-light.yellow {
+  background-color: #FFBD2E;
+}
+
+.traffic-light.green {
+  background-color: #27C93F;
+}
+
+/* Traffic Light Hover Icons (Optional: Add content on hover if desired) */
+.traffic-lights:hover .traffic-light.red::after,
+.traffic-lights:hover .traffic-light.yellow::after,
+.traffic-lights:hover .traffic-light.green::after {
+  /* To add symbols like x, -, + on hover, you'd need SVG or content here. 
+       For now, just the color shift defined in component is standard behavior */
 }

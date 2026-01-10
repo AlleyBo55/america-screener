@@ -1,65 +1,184 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import { Header } from '@/components/layout/Header';
+import { YosemiteWindow } from '@/components/ui/YosemiteWindow';
+import { Dock } from '@/components/layout/Dock';
+import { MobileTabBar } from '@/components/layout/MobileTabBar';
+import { LiveVisitorWidget } from '@/components/ui/LiveVisitorWidget';
+import { TokenDetailView } from '@/components/features/token/TokenDetailView';
+import { FinderContent } from '@/components/features/finder/FinderContent';
+import { DesktopStatsWidget } from '@/components/features/stats/DesktopStatsWidget';
+import { StickyNote } from '@/components/ui/StickyNote';
+
+import { TokenPair } from '@/types/token';
+import { useTokenData } from '@/hooks/useTokenData';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Home() {
+  // Data Hook
+  const {
+    tokens,
+    paginatedTokens,
+    filteredTokens,
+    loading,
+    setSearchQuery,
+    sortKey,
+    sortDirection,
+    handleSort,
+    currentPage,
+    totalPages,
+    handlePageChange,
+    handleRefresh
+  } = useTokenData();
+
+  // View State
+  const [selectedToken, setSelectedToken] = useState<TokenPair | null>(null);
+  const [isFinderOpen, setIsFinderOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('tokens');
+  const [mobileSearchActive, setMobileSearchActive] = useState(false);
+
+  // Handle Tab Change
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === 'search') {
+      setMobileSearchActive(true);
+    } else {
+      setMobileSearchActive(false);
+      setSearchQuery('');
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="h-screen w-screen overflow-hidden flex flex-col font-sans text-gray-900 relative">
+
+      {/* 1. Menu Bar */}
+      <Header
+        onSearch={setSearchQuery}
+        onRefresh={handleRefresh}
+        isLoading={loading}
+        isMobileSearchActive={mobileSearchActive}
+        onCloseMobileSearch={() => {
+          setMobileSearchActive(false);
+          setActiveTab('tokens');
+          setSearchQuery('');
+        }}
+      />
+
+      {/* 2. Main Area */}
+      <main className="flex-1 relative w-full h-full md:p-8 flex items-center justify-center">
+
+        {/* Detail View Overlay (Z-Index High) */}
+        <AnimatePresence>
+          {selectedToken && (
+            <TokenDetailView
+              token={selectedToken}
+              onClose={() => setSelectedToken(null)}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+          )}
+        </AnimatePresence>
+
+        {/* Desktop: Background Layer */}
+        {!selectedToken && (
+          <div className="hidden md:block absolute inset-0 z-0 pointer-events-none">
+            <AnimatePresence mode="wait">
+              {!isFinderOpen ? (
+                // State A: Finder Closed -> Show Full Stats Widget (Centered)
+                <motion.div
+                  key="full-stats"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.4 }}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-auto"
+                >
+                  <DesktopStatsWidget tokens={tokens} />
+                </motion.div>
+              ) : (
+                // State B: Finder Open -> Show Sticky Note (Right Side)
+                <div className="absolute inset-0 pointer-events-auto">
+                  <StickyNote onClick={() => {
+                    // Optional: Highlight Finder?
+                  }} />
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* Brand Watermark (Always Visible but subtle) */}
+            <motion.div
+              animate={{ opacity: isFinderOpen ? 0.05 : 0.1 }}
+              className="absolute bottom-0 right-0 p-16 text-right rotate-0 origin-bottom-right"
+            >
+              <h1 className="text-8xl font-black text-gray-900 tracking-tighter mix-blend-overlay leading-none">AMERICA</h1>
+              <h1 className="text-8xl font-black text-gray-900 tracking-tighter mix-blend-overlay leading-none">SCREENER</h1>
+            </motion.div>
+          </div>
+        )}
+
+        {/* 3. The "Finder" Application Window (Desktop) OR Full Screen List (Mobile) */}
+        <AnimatePresence>
+          {isFinderOpen && (
+            <>
+              {/* Desktop: Window Frame */}
+              <div className="hidden md:block absolute z-10">
+                <YosemiteWindow
+                  className="w-[60vw] h-[75vh] shadow-2xl"
+                  title="Token List"
+                  icon="🦅"
+                  onClose={() => setIsFinderOpen(false)}
+                >
+                  <FinderContent
+                    loading={loading}
+                    tokens={tokens}
+                    paginatedTokens={paginatedTokens}
+                    filteredTokens={filteredTokens}
+                    sortKey={sortKey}
+                    sortDirection={sortDirection}
+                    handleSort={handleSort}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    handlePageChange={handlePageChange}
+                    isMobile={false}
+                    onTokenSelect={setSelectedToken}
+                  />
+                </YosemiteWindow>
+              </div>
+
+              {/* Mobile: Full Screen, No Window Frame, Extra Bottom Padding for TabBar */}
+              <div className="md:hidden w-full h-full bg-white overflow-hidden flex flex-col pt-0 pb-[60px]">
+                <FinderContent
+                  loading={loading}
+                  tokens={tokens}
+                  paginatedTokens={paginatedTokens}
+                  filteredTokens={filteredTokens}
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  handleSort={handleSort}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  handlePageChange={handlePageChange}
+                  isMobile
+                  onTokenSelect={setSelectedToken}
+                />
+              </div>
+            </>
+          )}
+        </AnimatePresence>
+
       </main>
+
+      {/* 4. Desktop Dock */}
+      <div className="hidden md:block">
+        <LiveVisitorWidget />
+        <Dock
+          isFinderOpen={isFinderOpen}
+          onOpenFinder={() => setIsFinderOpen(!isFinderOpen)}
+        />
+      </div>
+
+      {/* 5. Mobile Tab Bar */}
+      <MobileTabBar activeTab={activeTab} onTabChange={handleTabChange} />
+
     </div>
   );
 }
