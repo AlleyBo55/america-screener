@@ -3,11 +3,8 @@
         ".read": false,
         ".write": false,
         "connections": {
-            // Anyone can see the list of connections (to count them)
             ".read": true,
-            // Anyone can add themselves to the connections list
             ".write": true,
-            // Optional: Data validation to ensure they only write timestamp/ua
             "$connectionId": {
                 ".validate": "newData.hasChildren(['start', 'ua'])"
             }

@@ -23,9 +23,9 @@ export const metadata: Metadata = {
     description: "Track america.fun token launches on Solana",
   },
   icons: {
-    icon: '/ai-eagle-eye.png',
-    shortcut: '/ai-eagle-eye.png',
-    apple: '/ai-eagle-eye.png',
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
 };
 
