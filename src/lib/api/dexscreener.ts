@@ -181,19 +181,32 @@ export async function getPairByAddress(pairAddress: string): Promise<TokenPair |
 
 /**
  * Check if a pair is a valid america.fun token:
- * - Solana chain
- * - Quote token is USD1
- * - Base token address ends with "USA"
+ * - Solana chain ONLY
+ * - One side is USD1
+ * - The OTHER side's address ends with "USA"
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isValidAmericaFunPair(pair: any): boolean {
+    // Must be Solana
     if (pair.chainId !== 'solana') return false;
 
     const baseAddress = pair.baseToken?.address || '';
     const quoteAddress = pair.quoteToken?.address || '';
 
-    // Check if quote token is USD1 and base token ends with USA
-    return isPairedWithUSD1(quoteAddress) && isAmericaFunToken(baseAddress);
+    // Case 1: Quote is USD1, Base ends with USA
+    if (quoteAddress === USD1_TOKEN_ADDRESS) {
+        const endsWithUSA = baseAddress.toUpperCase().endsWith('USA');
+        return endsWithUSA;
+    }
+
+    // Case 2: Base is USD1, Quote ends with USA  
+    if (baseAddress === USD1_TOKEN_ADDRESS) {
+        const endsWithUSA = quoteAddress.toUpperCase().endsWith('USA');
+        return endsWithUSA;
+    }
+
+    // Neither token is USD1 - not valid
+    return false;
 }
 
 /**
