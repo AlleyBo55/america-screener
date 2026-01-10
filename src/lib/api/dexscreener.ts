@@ -4,6 +4,11 @@ import { fetcher } from './fetcher';
 const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex';
 
 // ============================================
+// USD1 Token (World Liberty Financial USD)
+// ============================================
+const USD1_TOKEN_ADDRESS = 'USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB';
+
+// ============================================
 // Pinned $AOL Token (america.fun's flagship token)
 // ============================================
 const AOL_TOKEN_ADDRESS = '2oQNkePakuPbHzrVVkQ875WHeewLHCd2cAwfwiLQbonk';
@@ -11,10 +16,16 @@ const AOL_PAIR_ADDRESS = '69ZvRfF9K7c9DsRTouisoeKc7G5Lm1Gz4moKgRjGhsJV';
 
 /**
  * Check if a token address ends with "USA" (america.fun signature)
- * Note: Some america.fun tokens like $AOL don't follow this pattern
  */
 export function isAmericaFunToken(address: string): boolean {
     return address.toUpperCase().endsWith('USA');
+}
+
+/**
+ * Check if a pair is paired with USD1
+ */
+export function isPairedWithUSD1(quoteTokenAddress: string): boolean {
+    return quoteTokenAddress === USD1_TOKEN_ADDRESS;
 }
 
 /**
@@ -170,25 +181,76 @@ export async function getPairByAddress(pairAddress: string): Promise<TokenPair |
 }
 
 /**
+ * Fetch all pairs traded against USD1 on Solana
+ * Then filter for tokens whose address ends with "USA"
+ */
+export async function fetchUSD1Pairs(): Promise<TokenPair[]> {
+    try {
+        // Search for pairs involving USD1
+        const data = await fetcher.fetch<DexScreenerResponse>(
+            `${DEXSCREENER_API}/tokens/${USD1_TOKEN_ADDRESS}`,
+            { dedupeKey: 'usd1-pairs' }
+        );
+
+        if (!data.pairs) return [];
+
+        // Filter for:
+        // 1. Solana chain
+        // 2. Base token address ends with "USA"
+        // 3. Quote token is USD1
+        return data.pairs
+            .filter(pair => {
+                if (pair.chainId !== 'solana') return false;
+
+                const baseAddress = pair.baseToken?.address || '';
+                const quoteAddress = pair.quoteToken?.address || '';
+
+                // Accept pairs where either base or quote is USD1, 
+                // and the OTHER token ends with USA
+                if (quoteAddress === USD1_TOKEN_ADDRESS) {
+                    return isAmericaFunToken(baseAddress);
+                }
+                if (baseAddress === USD1_TOKEN_ADDRESS) {
+                    // Reverse case: USD1 is base token, check quote
+                    return isAmericaFunToken(quoteAddress);
+                }
+                return false;
+            })
+            .map(pair => processPair(pair));
+    } catch (error) {
+        console.error('Failed to fetch USD1 pairs:', error);
+        return [];
+    }
+}
+
+/**
  * Fetch america.fun tokens from DexScreener
- * Returns pinned $AOL at top + tokens with USA suffix addresses on Solana
+ * Returns pinned $AOL at top + tokens with USA suffix addresses paired with USD1
  */
 export async function getAmericaFunTokens(): Promise<TokenPair[]> {
     try {
         // 1. Fetch pinned $AOL first
         const pinnedAOL = await fetchPinnedAOL();
 
-        // 2. Search for USA-ending tokens on Solana
-        const queries = ['USA', 'america.fun', 'america'];
-        const allPairs: TokenPair[] = [];
+        // 2. Fetch USD1 pairs with USA-ending addresses
+        const usd1Pairs = await fetchUSD1Pairs();
+
+        // 3. Also search for USA-related tokens (backup)
+        const searchQueries = ['USA solana'];
+        const allPairs: TokenPair[] = [...usd1Pairs];
         const seenAddresses = new Set<string>();
+
+        // Mark existing pairs as seen
+        for (const pair of usd1Pairs) {
+            seenAddresses.add(pair.baseToken.address);
+        }
 
         // Mark $AOL as seen so it's not duplicated
         if (pinnedAOL) {
             seenAddresses.add(pinnedAOL.baseToken.address);
         }
 
-        for (const query of queries) {
+        for (const query of searchQueries) {
             try {
                 const data = await fetcher.fetch<DexScreenerResponse>(
                     `${DEXSCREENER_API}/search?q=${encodeURIComponent(query)}`,
@@ -199,11 +261,14 @@ export async function getAmericaFunTokens(): Promise<TokenPair[]> {
 
                 const filteredPairs = data.pairs
                     .filter(pair => {
-                        const address = pair.baseToken?.address || '';
-                        // Filter for Solana + USA suffix addresses
+                        const baseAddress = pair.baseToken?.address || '';
+                        const quoteAddress = pair.quoteToken?.address || '';
+
+                        // Must be Solana + USA-ending address + USD1 pair
                         return pair.chainId === 'solana' &&
-                            isAmericaFunToken(address) &&
-                            !seenAddresses.has(address);
+                            isAmericaFunToken(baseAddress) &&
+                            isPairedWithUSD1(quoteAddress) &&
+                            !seenAddresses.has(baseAddress);
                     })
                     .map(pair => {
                         seenAddresses.add(pair.baseToken?.address || '');
