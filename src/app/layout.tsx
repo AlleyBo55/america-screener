@@ -16,11 +16,20 @@ export const metadata: Metadata = {
     title: "AmericaScreener | Track America.fun Token Launches",
     description: "Real-time token tracker for america.fun launches on Solana",
     type: "website",
+    images: [
+      {
+        url: '/ai-eagle-eye.png',
+        width: 1200,
+        height: 630,
+        alt: 'America Screener - Token Analytics Dashboard',
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "AmericaScreener",
     description: "Track america.fun token launches on Solana",
+    images: ['/ai-eagle-eye.png'],
   },
   icons: {
     icon: '/favicon.ico',
