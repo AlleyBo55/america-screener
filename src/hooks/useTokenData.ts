@@ -32,7 +32,6 @@ export function useTokenData(itemsPerPage: number = 25) {
             setLastFetchTime(Date.now());
         } catch (e) {
             console.error('Failed to fetch tokens:', e);
-            // Keep existing data on error, don't clear
         } finally {
             setLoading(false);
         }
@@ -52,21 +51,43 @@ export function useTokenData(itemsPerPage: number = 25) {
         return () => clearInterval(interval);
     }, [fetchData]);
 
-    // Filter Logic (Memoized)
+    // Filter Logic (Memoized) - Always keep pinned $AOL at index 0
     const filteredTokens = useMemo(() => {
         if (!deferredQuery) return tokens;
 
         const lowerQuery = deferredQuery.toLowerCase();
-        return tokens.filter(t =>
+
+        // Get pinned token (first item if it's $AOL)
+        const pinnedToken = tokens[0]?.baseToken.symbol === 'AOL' ? tokens[0] : null;
+        const otherTokens = pinnedToken ? tokens.slice(1) : tokens;
+
+        const filtered = otherTokens.filter(t =>
             t.baseToken.name.toLowerCase().includes(lowerQuery) ||
             t.baseToken.symbol.toLowerCase().includes(lowerQuery) ||
             t.pairAddress.toLowerCase().includes(lowerQuery)
         );
+
+        // Always keep pinned at top if it matches or if no query
+        if (pinnedToken) {
+            const pinnedMatches =
+                pinnedToken.baseToken.name.toLowerCase().includes(lowerQuery) ||
+                pinnedToken.baseToken.symbol.toLowerCase().includes(lowerQuery);
+
+            if (pinnedMatches || !deferredQuery) {
+                return [pinnedToken, ...filtered];
+            }
+        }
+
+        return filtered;
     }, [deferredQuery, tokens]);
 
-    // Sort Logic (Memoized)
+    // Sort Logic (Memoized) - Always keep pinned $AOL at index 0
     const sortedTokens = useMemo(() => {
-        return [...filteredTokens].sort((a, b) => {
+        // Get pinned token (first item if it's $AOL)
+        const pinnedToken = filteredTokens[0]?.baseToken.symbol === 'AOL' ? filteredTokens[0] : null;
+        const tokensToSort = pinnedToken ? filteredTokens.slice(1) : filteredTokens;
+
+        const sorted = [...tokensToSort].sort((a, b) => {
             let valA: string | number = '';
             let valB: string | number = '';
 
@@ -109,6 +130,9 @@ export function useTokenData(itemsPerPage: number = 25) {
                 ? strA.localeCompare(strB)
                 : strB.localeCompare(strA);
         });
+
+        // Always keep pinned $AOL at the top
+        return pinnedToken ? [pinnedToken, ...sorted] : sorted;
     }, [filteredTokens, sortKey, sortDirection]);
 
     // Reset Page on Filter Change
@@ -116,11 +140,18 @@ export function useTokenData(itemsPerPage: number = 25) {
         setCurrentPage(1);
     }, [deferredQuery]);
 
-    // Pagination Logic
-    const totalPages = Math.ceil(sortedTokens.length / itemsPerPage);
+    // Pagination Logic - Pinned token is always visible on all pages
+    const totalPages = Math.max(1, Math.ceil((sortedTokens.length - 1) / itemsPerPage)); // -1 for pinned
+
     const paginatedTokens = useMemo(() => {
+        // Always include pinned token at position 0
+        const pinnedToken = sortedTokens[0]?.baseToken.symbol === 'AOL' ? sortedTokens[0] : null;
+        const tokensWithoutPinned = pinnedToken ? sortedTokens.slice(1) : sortedTokens;
+
         const start = (currentPage - 1) * itemsPerPage;
-        return sortedTokens.slice(start, start + itemsPerPage);
+        const page = tokensWithoutPinned.slice(start, start + itemsPerPage);
+
+        return pinnedToken ? [pinnedToken, ...page] : page;
     }, [currentPage, itemsPerPage, sortedTokens]);
 
     const handleSort = (key: string) => {

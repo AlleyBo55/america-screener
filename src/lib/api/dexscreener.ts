@@ -3,8 +3,15 @@ import { fetcher } from './fetcher';
 
 const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex';
 
+// ============================================
+// Pinned $AOL Token (america.fun's flagship token)
+// ============================================
+const AOL_TOKEN_ADDRESS = '2oQNkePakuPbHzrVVkQ875WHeewLHCd2cAwfwiLQbonk';
+const AOL_PAIR_ADDRESS = '69ZvRfF9K7c9DsRTouisoeKc7G5Lm1Gz4moKgRjGhsJV';
+
 /**
  * Check if a token address ends with "USA" (america.fun signature)
+ * Note: Some america.fun tokens like $AOL don't follow this pattern
  */
 export function isAmericaFunToken(address: string): boolean {
     return address.toUpperCase().endsWith('USA');
@@ -21,15 +28,13 @@ function calculateAgeMinutes(timestamp: number): number {
  * Process raw pair data and add america.fun specific fields
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function processPair(pair: any): TokenPair {
-    const isAmericaFun = isAmericaFunToken(pair.baseToken?.address || '');
+function processPair(pair: any, isPinned = false): TokenPair {
+    const isAmericaFun = isAmericaFunToken(pair.baseToken?.address || '') || isPinned;
     const ageMinutes = pair.pairCreatedAt ? calculateAgeMinutes(pair.pairCreatedAt) : 0;
 
-    // Estimate graduation status based on liquidity threshold
     const liquidityUsd = pair.liquidity?.usd || 0;
     const isGraduated = liquidityUsd > 50000;
 
-    // Estimate bonding curve progress (0-100%)
     const bondingCurveProgress = isGraduated
         ? undefined
         : Math.min(100, Math.round((liquidityUsd / 69000) * 100));
@@ -88,7 +93,26 @@ function processPair(pair: any): TokenPair {
 }
 
 /**
- * Search for tokens by query - filters for america.fun tokens
+ * Fetch the pinned $AOL token data from DexScreener
+ */
+export async function fetchPinnedAOL(): Promise<TokenPair | null> {
+    try {
+        const data = await fetcher.fetch<DexScreenerResponse>(
+            `${DEXSCREENER_API}/pairs/solana/${AOL_PAIR_ADDRESS}`,
+            { dedupeKey: 'pinned-aol' }
+        );
+
+        if (!data.pairs || data.pairs.length === 0) return null;
+
+        return processPair(data.pairs[0], true);
+    } catch (error) {
+        console.error('Failed to fetch pinned $AOL:', error);
+        return null;
+    }
+}
+
+/**
+ * Search for tokens by query
  */
 export async function searchTokens(query: string): Promise<TokenPair[]> {
     try {
@@ -99,8 +123,8 @@ export async function searchTokens(query: string): Promise<TokenPair[]> {
         if (!data.pairs) return [];
 
         return data.pairs
-            .filter(pair => pair.chainId === 'solana' && isAmericaFunToken(pair.baseToken?.address || ''))
-            .map(processPair);
+            .filter(pair => pair.chainId === 'solana')
+            .map(pair => processPair(pair));
     } catch (error) {
         console.error('Search error:', error);
         return [];
@@ -120,7 +144,7 @@ export async function getTokenPairs(tokenAddress: string): Promise<TokenPair[]> 
 
         return data.pairs
             .filter(pair => pair.chainId === 'solana')
-            .map(processPair);
+            .map(pair => processPair(pair));
     } catch (error) {
         console.error('Get token pairs error:', error);
         return [];
@@ -146,16 +170,24 @@ export async function getPairByAddress(pairAddress: string): Promise<TokenPair |
 }
 
 /**
- * Search for america.fun tokens (searches for "USA" suffix tokens on Solana)
- * Uses singleton fetcher with built-in rate limiting
+ * Fetch america.fun tokens from DexScreener
+ * Returns pinned $AOL at top + tokens with USA suffix addresses on Solana
  */
 export async function getAmericaFunTokens(): Promise<TokenPair[]> {
     try {
-        const queries = ['USA', 'america', 'AOL'];
+        // 1. Fetch pinned $AOL first
+        const pinnedAOL = await fetchPinnedAOL();
+
+        // 2. Search for USA-ending tokens on Solana
+        const queries = ['USA', 'america.fun', 'america'];
         const allPairs: TokenPair[] = [];
         const seenAddresses = new Set<string>();
 
-        // Execute queries sequentially to respect rate limits
+        // Mark $AOL as seen so it's not duplicated
+        if (pinnedAOL) {
+            seenAddresses.add(pinnedAOL.baseToken.address);
+        }
+
         for (const query of queries) {
             try {
                 const data = await fetcher.fetch<DexScreenerResponse>(
@@ -168,6 +200,7 @@ export async function getAmericaFunTokens(): Promise<TokenPair[]> {
                 const filteredPairs = data.pairs
                     .filter(pair => {
                         const address = pair.baseToken?.address || '';
+                        // Filter for Solana + USA suffix addresses
                         return pair.chainId === 'solana' &&
                             isAmericaFunToken(address) &&
                             !seenAddresses.has(address);
@@ -179,13 +212,15 @@ export async function getAmericaFunTokens(): Promise<TokenPair[]> {
 
                 allPairs.push(...filteredPairs);
             } catch (queryError) {
-                // If one query fails (e.g., rate limit), continue with others
                 console.warn(`Query "${query}" failed:`, queryError);
             }
         }
 
         // Sort by volume (most active first)
-        return allPairs.sort((a, b) => b.volume.h24 - a.volume.h24);
+        const sortedPairs = allPairs.sort((a, b) => b.volume.h24 - a.volume.h24);
+
+        // Prepend pinned $AOL at the top
+        return pinnedAOL ? [pinnedAOL, ...sortedPairs] : sortedPairs;
     } catch (error) {
         console.error('Get america.fun tokens error:', error);
         return [];
