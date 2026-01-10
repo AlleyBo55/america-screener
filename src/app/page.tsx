@@ -10,9 +10,11 @@ import { TokenDetailView } from '@/components/features/token/TokenDetailView';
 import { FinderContent } from '@/components/features/finder/FinderContent';
 import { DesktopStatsWidget } from '@/components/features/stats/DesktopStatsWidget';
 import { StickyNote } from '@/components/ui/StickyNote';
+import { RateLimitModal } from '@/components/ui/RateLimitModal';
 
 import { TokenPair } from '@/types/token';
 import { useTokenData } from '@/hooks/useTokenData';
+import { useRateLimitHandler } from '@/hooks/useRateLimitHandler';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Home() {
@@ -31,6 +33,9 @@ export default function Home() {
     handlePageChange,
     handleRefresh
   } = useTokenData();
+
+  // Rate Limit Handler
+  const { isRateLimited, retryAfterSeconds, handleCountdownComplete } = useRateLimitHandler();
 
   // View State
   const [selectedToken, setSelectedToken] = useState<TokenPair | null>(null);
@@ -129,7 +134,6 @@ export default function Home() {
                 >
                   <FinderContent
                     loading={loading}
-                    tokens={tokens}
                     paginatedTokens={paginatedTokens}
                     filteredTokens={filteredTokens}
                     sortKey={sortKey}
@@ -148,7 +152,6 @@ export default function Home() {
               <div className="md:hidden w-full h-full bg-white overflow-hidden flex flex-col pt-0 pb-[60px]">
                 <FinderContent
                   loading={loading}
-                  tokens={tokens}
                   paginatedTokens={paginatedTokens}
                   filteredTokens={filteredTokens}
                   sortKey={sortKey}
@@ -178,6 +181,13 @@ export default function Home() {
 
       {/* 5. Mobile Tab Bar */}
       <MobileTabBar activeTab={activeTab} onTabChange={handleTabChange} />
+
+      {/* 6. Rate Limit Modal (Global) */}
+      <RateLimitModal
+        isOpen={isRateLimited}
+        retryAfterSeconds={retryAfterSeconds}
+        onComplete={handleCountdownComplete}
+      />
 
     </div>
   );

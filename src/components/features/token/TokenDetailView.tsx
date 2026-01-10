@@ -235,7 +235,7 @@ export function TokenDetailView({ token, onClose }: TokenDetailViewProps) {
                                 </a>
                             ))}
                             {/* DexScreener Link */}
-                            <a href={token.url} target="_blank" rel="noopener noreferrer"
+                            <a href={`https://dexscreener.com/solana/${token.pairAddress}`} target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-2 px-4 py-2.5 bg-america-blue hover:opacity-90 rounded-xl text-sm font-semibold text-white transition-colors ml-auto"
                             >
                                 View on DexScreener

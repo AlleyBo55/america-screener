@@ -1,12 +1,15 @@
-import { useState, useEffect, useMemo, useDeferredValue } from 'react';
+import { useState, useEffect, useMemo, useDeferredValue, useCallback } from 'react';
 import { TokenPair } from '@/types/token';
 import { getAmericaFunTokens } from '@/lib/api/dexscreener';
-import { generateDummyTokens } from '@/lib/dummyData';
+
+// Refresh interval (60 seconds to stay well within DexScreener's 300 req/min limit)
+const REFRESH_INTERVAL_MS = 60_000;
 
 export function useTokenData(itemsPerPage: number = 25) {
     const [tokens, setTokens] = useState<TokenPair[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
     // Defer the search query to keep input responsive
     const deferredQuery = useDeferredValue(searchQuery);
@@ -18,25 +21,36 @@ export function useTokenData(itemsPerPage: number = 25) {
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Initial Fetch (One-off)
-    useEffect(() => {
-        const fetchTokens = async () => {
-            setLoading(true);
-            try {
-                const realData = await getAmericaFunTokens().catch(() => []);
-                const dummyData = generateDummyTokens(1000);
-                // Combine and deduplicate if needed (though IDs should be unique ideally)
-                const allTokens = [...realData, ...dummyData];
-                setTokens(allTokens);
-            } catch (e) {
-                console.error("Failed to fetch tokens", e);
-                setTokens(generateDummyTokens(1000));
-            } finally {
-                setLoading(false);
+    // Fetch function (reusable)
+    const fetchData = useCallback(async (showLoading = true) => {
+        if (showLoading) setLoading(true);
+        try {
+            const realData = await getAmericaFunTokens();
+            if (realData.length > 0) {
+                setTokens(realData);
             }
-        };
-        fetchTokens();
+            setLastFetchTime(Date.now());
+        } catch (e) {
+            console.error('Failed to fetch tokens:', e);
+            // Keep existing data on error, don't clear
+        } finally {
+            setLoading(false);
+        }
     }, []);
+
+    // Initial Fetch
+    useEffect(() => {
+        fetchData(true);
+    }, [fetchData]);
+
+    // Auto-Refresh (every 60 seconds)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchData(false); // Silent refresh (no loading spinner)
+        }, REFRESH_INTERVAL_MS);
+
+        return () => clearInterval(interval);
+    }, [fetchData]);
 
     // Filter Logic (Memoized)
     const filteredTokens = useMemo(() => {
@@ -56,7 +70,6 @@ export function useTokenData(itemsPerPage: number = 25) {
             let valA: string | number = '';
             let valB: string | number = '';
 
-            // Type-safe Key Access
             switch (sortKey) {
                 case 'price':
                     valA = parseFloat(a.priceUsd || '0');
@@ -83,16 +96,13 @@ export function useTokenData(itemsPerPage: number = 25) {
                     valB = b.baseToken.name;
                     break;
                 default:
-                    // Default string fallback for unhandled keys
                     return 0;
             }
 
-            // Numeric Comparison
             if (typeof valA === 'number' && typeof valB === 'number') {
                 return sortDirection === 'asc' ? valA - valB : valB - valA;
             }
 
-            // String Comparison
             const strA = String(valA).toLowerCase();
             const strB = String(valB).toLowerCase();
             return sortDirection === 'asc'
@@ -129,15 +139,14 @@ export function useTokenData(itemsPerPage: number = 25) {
         }
     };
 
-    const handleRefresh = () => {
-        setLoading(true);
-        setTimeout(() => setLoading(false), 500);
-    };
+    const handleRefresh = useCallback(() => {
+        fetchData(true);
+    }, [fetchData]);
 
     return {
         tokens,
         paginatedTokens,
-        filteredTokens: sortedTokens, // Expose sorted list as 'filteredTokens' for FinderContent compatibility if needed, but semantically 'sorted'
+        filteredTokens: sortedTokens,
         loading,
         searchQuery,
         setSearchQuery,
@@ -147,6 +156,7 @@ export function useTokenData(itemsPerPage: number = 25) {
         currentPage,
         totalPages,
         handlePageChange,
-        handleRefresh
+        handleRefresh,
+        lastFetchTime,
     };
 }

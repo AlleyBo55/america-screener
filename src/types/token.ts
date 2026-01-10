@@ -44,7 +44,7 @@ export interface TokenPair {
   pairCreatedAt: number;
   info?: {
     imageUrl?: string;
-    websites?: { url: string }[];
+    websites?: { url: string; label?: string }[];
     socials?: { type: string; url: string }[];
   };
   // Custom fields for america.fun
@@ -52,6 +52,14 @@ export interface TokenPair {
   bondingCurveProgress?: number; // 0-100, undefined if graduated
   isGraduated: boolean;
   ageMinutes: number;
+  // Optional analysis data (simulated if not available)
+  analysis?: {
+    riskScore: number;
+    auditStatus: string;
+    bundlerPercentage: number;
+    insiderPercentage: number;
+    kolCount: number;
+  };
 }
 
 export interface DexScreenerResponse {

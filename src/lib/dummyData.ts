@@ -4,17 +4,18 @@ export function generateDummyTokens(count: number = 1000): TokenPair[] {
     return Array.from({ length: count }).map((_, i) => ({
         chainId: "solana",
         dexId: "raydium",
-        url: "https://dexscreener.com/solana/dummy",
         pairAddress: `dummy-address-${i}`,
         baseToken: {
             address: `token-address-${i}USA`,
             name: `America Token ${i}`,
             symbol: `USA${i}`,
+            decimals: 9,
         },
         quoteToken: {
             address: "So11111111111111111111111111111111111111112",
             name: "Solana",
             symbol: "SOL",
+            decimals: 9,
         },
         priceNative: "0.001",
         priceUsd: (Math.random() * 0.1).toFixed(6),
@@ -45,8 +46,10 @@ export function generateDummyTokens(count: number = 1000): TokenPair[] {
             websites: [],
             socials: [],
         },
+        isAmericaFun: true,
         ageMinutes: Math.floor(Math.random() * 1440),
         isGraduated: Math.random() > 0.8,
         bondingCurveProgress: Math.floor(Math.random() * 100),
     }));
 }
+

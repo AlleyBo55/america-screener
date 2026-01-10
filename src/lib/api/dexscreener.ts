@@ -1,4 +1,5 @@
 import { TokenPair, DexScreenerResponse } from '@/types/token';
+import { fetcher } from './fetcher';
 
 const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex';
 
@@ -25,12 +26,10 @@ function processPair(pair: any): TokenPair {
     const ageMinutes = pair.pairCreatedAt ? calculateAgeMinutes(pair.pairCreatedAt) : 0;
 
     // Estimate graduation status based on liquidity threshold
-    // America.fun tokens graduate to Raydium when reaching ~$69k liquidity
     const liquidityUsd = pair.liquidity?.usd || 0;
-    const isGraduated = liquidityUsd > 50000; // Conservative estimate
+    const isGraduated = liquidityUsd > 50000;
 
     // Estimate bonding curve progress (0-100%)
-    // Based on typical graduation threshold
     const bondingCurveProgress = isGraduated
         ? undefined
         : Math.min(100, Math.round((liquidityUsd / 69000) * 100));
@@ -93,13 +92,12 @@ function processPair(pair: any): TokenPair {
  */
 export async function searchTokens(query: string): Promise<TokenPair[]> {
     try {
-        const response = await fetch(`${DEXSCREENER_API}/search?q=${encodeURIComponent(query)}`);
-        if (!response.ok) throw new Error('Failed to fetch');
+        const data = await fetcher.fetch<DexScreenerResponse>(
+            `${DEXSCREENER_API}/search?q=${encodeURIComponent(query)}`
+        );
 
-        const data: DexScreenerResponse = await response.json();
         if (!data.pairs) return [];
 
-        // Filter for Solana tokens ending with USA
         return data.pairs
             .filter(pair => pair.chainId === 'solana' && isAmericaFunToken(pair.baseToken?.address || ''))
             .map(processPair);
@@ -114,10 +112,10 @@ export async function searchTokens(query: string): Promise<TokenPair[]> {
  */
 export async function getTokenPairs(tokenAddress: string): Promise<TokenPair[]> {
     try {
-        const response = await fetch(`${DEXSCREENER_API}/tokens/${tokenAddress}`);
-        if (!response.ok) throw new Error('Failed to fetch');
+        const data = await fetcher.fetch<DexScreenerResponse>(
+            `${DEXSCREENER_API}/tokens/${tokenAddress}`
+        );
 
-        const data: DexScreenerResponse = await response.json();
         if (!data.pairs) return [];
 
         return data.pairs
@@ -134,10 +132,10 @@ export async function getTokenPairs(tokenAddress: string): Promise<TokenPair[]> 
  */
 export async function getPairByAddress(pairAddress: string): Promise<TokenPair | null> {
     try {
-        const response = await fetch(`${DEXSCREENER_API}/pairs/solana/${pairAddress}`);
-        if (!response.ok) throw new Error('Failed to fetch');
+        const data = await fetcher.fetch<DexScreenerResponse>(
+            `${DEXSCREENER_API}/pairs/solana/${pairAddress}`
+        );
 
-        const data: DexScreenerResponse = await response.json();
         if (!data.pairs || data.pairs.length === 0) return null;
 
         return processPair(data.pairs[0]);
@@ -149,37 +147,41 @@ export async function getPairByAddress(pairAddress: string): Promise<TokenPair |
 
 /**
  * Search for america.fun tokens (searches for "USA" suffix tokens on Solana)
- * This is a workaround since there's no direct america.fun API
+ * Uses singleton fetcher with built-in rate limiting
  */
 export async function getAmericaFunTokens(): Promise<TokenPair[]> {
     try {
-        // Search for common terms that might find america.fun tokens
-        // We'll also try multiple queries to get more results
         const queries = ['USA', 'america', 'AOL'];
         const allPairs: TokenPair[] = [];
         const seenAddresses = new Set<string>();
 
+        // Execute queries sequentially to respect rate limits
         for (const query of queries) {
-            const response = await fetch(`${DEXSCREENER_API}/search?q=${encodeURIComponent(query)}`);
-            if (!response.ok) continue;
+            try {
+                const data = await fetcher.fetch<DexScreenerResponse>(
+                    `${DEXSCREENER_API}/search?q=${encodeURIComponent(query)}`,
+                    { dedupeKey: `search:${query}` }
+                );
 
-            const data: DexScreenerResponse = await response.json();
-            if (!data.pairs) continue;
+                if (!data.pairs) continue;
 
-            // Filter for Solana tokens with USA suffix
-            const filteredPairs = data.pairs
-                .filter(pair => {
-                    const address = pair.baseToken?.address || '';
-                    return pair.chainId === 'solana' &&
-                        isAmericaFunToken(address) &&
-                        !seenAddresses.has(address);
-                })
-                .map(pair => {
-                    seenAddresses.add(pair.baseToken?.address || '');
-                    return processPair(pair);
-                });
+                const filteredPairs = data.pairs
+                    .filter(pair => {
+                        const address = pair.baseToken?.address || '';
+                        return pair.chainId === 'solana' &&
+                            isAmericaFunToken(address) &&
+                            !seenAddresses.has(address);
+                    })
+                    .map(pair => {
+                        seenAddresses.add(pair.baseToken?.address || '');
+                        return processPair(pair);
+                    });
 
-            allPairs.push(...filteredPairs);
+                allPairs.push(...filteredPairs);
+            } catch (queryError) {
+                // If one query fails (e.g., rate limit), continue with others
+                console.warn(`Query "${query}" failed:`, queryError);
+            }
         }
 
         // Sort by volume (most active first)
