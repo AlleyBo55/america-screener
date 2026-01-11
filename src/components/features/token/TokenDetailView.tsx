@@ -32,7 +32,7 @@ export function TokenDetailView({
     const [txnTimeframe, setTxnTimeframe] = useState<TimeFrame>('h24');
 
     const handleCopyAddress = () => {
-        navigator.clipboard.writeText(token.pairAddress);
+        navigator.clipboard.writeText(token.baseToken.address);
         setShowToast(true);
     };
 
@@ -95,7 +95,7 @@ export function TokenDetailView({
                                         onClick={handleCopyAddress}
                                         className="flex items-center gap-2 w-full text-xs font-mono text-gray-600 hover:text-blue-500 transition-colors bg-white border border-gray-200 rounded px-2 py-1.5 shadow-sm"
                                     >
-                                        <span className="truncate">{shortenAddress(token.pairAddress, 10)}</span>
+                                        <span className="truncate">{shortenAddress(token.baseToken.address, 10)}</span>
                                         <Copy className="w-3 h-3 flex-shrink-0 ml-auto" />
                                     </button>
                                 </div>
@@ -309,7 +309,7 @@ export function TokenDetailView({
                                     onClick={handleCopyAddress}
                                     className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md mt-1 w-fit"
                                 >
-                                    <span className="font-mono">{shortenAddress(token.pairAddress, 6)}</span>
+                                    <span className="font-mono">{shortenAddress(token.baseToken.address, 6)}</span>
                                     <Copy className="w-3 h-3" />
                                 </button>
                             </div>

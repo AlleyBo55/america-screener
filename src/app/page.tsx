@@ -74,30 +74,29 @@ export default function Home() {
     dispatch(fetchTokensRequest());
   }, [dispatch]);
 
-  // Filter tokens based on search
-  const filteredTokens = useMemo(() => {
-    if (!searchQuery) return tokens;
-    const query = searchQuery.toLowerCase();
-    return tokens.filter(
-      (t) =>
+  // Combined filter + sort in single pass (avoids intermediate array allocation)
+  const { sortedTokens, totalPages } = useMemo(() => {
+    // 1. Filter by search query
+    const query = searchQuery?.toLowerCase() || '';
+    const filtered = query
+      ? tokens.filter(t =>
         t.baseToken.name.toLowerCase().includes(query) ||
         t.baseToken.symbol.toLowerCase().includes(query) ||
         t.baseToken.address.toLowerCase().includes(query)
-    );
-  }, [tokens, searchQuery]);
+      )
+      : tokens;
 
-  // Sort tokens
-  const sortedTokens = useMemo(() => {
-    const sorted = [...filteredTokens];
-    sorted.sort((a, b) => {
-      // 1. PIN AOL TO TOP
-      const isAolA = a.baseToken.symbol === 'AOL' || a.baseToken.name.includes('AOL');
-      const isAolB = b.baseToken.symbol === 'AOL' || b.baseToken.name.includes('AOL');
+    // 2. Sort with AOL pinned to top
+    const sorted = [...filtered].sort((a, b) => {
+      // Pin AOL to top (check symbol first for speed)
+      const isAolA = a.baseToken.symbol === 'AOL';
+      const isAolB = b.baseToken.symbol === 'AOL';
+      if (isAolA !== isAolB) return isAolA ? -1 : 1;
 
-      if (isAolA && !isAolB) return -1;
-      if (!isAolA && isAolB) return 1;
+      // Sort by selected key
+      let aVal: number | string = 0;
+      let bVal: number | string = 0;
 
-      let aVal = 0, bVal = 0;
       switch (sortKey) {
         case 'age': aVal = a.ageMinutes; bVal = b.ageMinutes; break;
         case 'price': aVal = parseFloat(a.priceUsd); bVal = parseFloat(b.priceUsd); break;
@@ -106,17 +105,22 @@ export default function Home() {
         case 'liquidity': aVal = a.liquidity.usd; bVal = b.liquidity.usd; break;
         case 'marketCap': aVal = a.marketCap || a.fdv; bVal = b.marketCap || b.fdv; break;
         case 'txns': aVal = a.txns.h24.buys + a.txns.h24.sells; bVal = b.txns.h24.buys + b.txns.h24.sells; break;
-        case 'name': return sortDirection === 'asc'
-          ? a.baseToken.name.localeCompare(b.baseToken.name)
-          : b.baseToken.name.localeCompare(a.baseToken.name);
+        case 'name': aVal = a.baseToken.name; bVal = b.baseToken.name; break;
       }
-      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-    });
-    return sorted;
-  }, [filteredTokens, sortKey, sortDirection]);
 
-  // Paginate tokens
-  const totalPages = Math.ceil(sortedTokens.length / pageSize);
+      if (typeof aVal === 'string') {
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal as string) : (bVal as string).localeCompare(aVal);
+      }
+      return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+    });
+
+    return {
+      sortedTokens: sorted,
+      totalPages: Math.max(1, Math.ceil(sorted.length / pageSize)),
+    };
+  }, [tokens, searchQuery, sortKey, sortDirection, pageSize]);
+
+  // Paginate (only recalculates when page changes or sorted list changes)
   const paginatedTokens = useMemo(() => {
     const start = (page - 1) * pageSize;
     return sortedTokens.slice(start, start + pageSize);
@@ -256,7 +260,7 @@ export default function Home() {
               </div>
 
               {/* Mobile: Full Screen, No Window Frame, Extra Bottom Padding for TabBar */}
-              <div className="md:hidden w-full h-full bg-white overflow-hidden flex flex-col pt-0 pb-[60px]">
+              <div className="md:hidden w-full h-full bg-white flex flex-col pt-0 pb-[60px]">
                 <FinderContent
                   loading={loading}
                   paginatedTokens={paginatedTokens}

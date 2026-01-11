@@ -33,12 +33,17 @@ function isValidAmericaFunPair(pair: any): boolean {
     const baseAddress = pair.baseToken?.address || '';
     const quoteAddress = pair.quoteToken?.address || '';
 
+    // Must be paired with USD1
     if (quoteAddress === USD1_TOKEN_ADDRESS) {
+        // Base token must end with USA
         return baseAddress.toUpperCase().endsWith('USA');
     }
     if (baseAddress === USD1_TOKEN_ADDRESS) {
+        // Quote token must end with USA  
         return quoteAddress.toUpperCase().endsWith('USA');
     }
+
+    // Additional check: if neither is USD1, skip this pair
     return false;
 }
 
@@ -160,7 +165,14 @@ export async function getAmericaFunTokens(): Promise<TokenPair[]> {
             for (const pair of data.pairs) {
                 const baseAddress = pair.baseToken?.address || '';
                 if (seenAddresses.has(baseAddress)) continue;
+
                 if (!isValidAmericaFunPair(pair)) continue;
+
+                // Double-check: token must end with USA
+                if (!baseAddress.toUpperCase().endsWith('USA')) {
+                    console.log(`[Filter] Rejected token ${pair.baseToken?.symbol} - address ${baseAddress} does not end with USA`);
+                    continue;
+                }
 
                 // Date filter: skip tokens older than BURGER
                 const pairCreatedAt = pair.pairCreatedAt || 0;
@@ -201,6 +213,9 @@ export async function getAmericaFunTokens(): Promise<TokenPair[]> {
                 if (seenAddresses.has(baseAddress)) continue;
                 if (!isValidAmericaFunPair(pair)) continue;
 
+                // Double-check: token must end with USA
+                if (!baseAddress.toUpperCase().endsWith('USA')) continue;
+
                 const pairCreatedAt = pair.pairCreatedAt || 0;
                 if (pairCreatedAt > 0 && pairCreatedAt < BURGER_LAUNCH_TIMESTAMP) {
                     continue;
@@ -215,6 +230,21 @@ export async function getAmericaFunTokens(): Promise<TokenPair[]> {
                 // Filter: Must have socials
                 const socials = pair.info?.socials || [];
                 if (socials.length === 0) {
+                    continue;
+                }
+
+                // Additional filter: Must have official america.fun branding or be whitelisted
+                const hasAmericaBranding = (
+                    pair.baseToken?.name?.toLowerCase().includes('america') ||
+                    pair.baseToken?.symbol?.toLowerCase().includes('usa') ||
+                    pair.baseToken?.symbol?.toLowerCase().includes('patriot') ||
+                    pair.baseToken?.symbol?.toLowerCase().includes('dream') ||
+                    pair.baseToken?.symbol?.toLowerCase().includes('burger') ||
+                    pair.baseToken?.symbol?.toLowerCase().includes('valor') ||
+                    pair.baseToken?.symbol?.toLowerCase().includes('uncle')
+                );
+
+                if (!hasAmericaBranding) {
                     continue;
                 }
 
