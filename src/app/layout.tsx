@@ -32,9 +32,7 @@ export const metadata: Metadata = {
     images: ['/ai-eagle-eye.png'],
   },
   icons: {
-    icon: '/favicon.ico?v=2',
-    shortcut: '/favicon.ico?v=2',
-    apple: '/apple-touch-icon.png',
+    icon: '/favicon.ico?v=3',
   },
 };
 
@@ -46,10 +44,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
-        <link rel="icon" href="/favicon-32x32.png?v=2" type="image/png" sizes="32x32" />
-        <link rel="icon" href="/favicon-16x16.png?v=2" type="image/png" sizes="16x16" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" href="/favicon.ico?v=3" type="image/x-icon" />
+        <link rel="shortcut icon" href="/favicon.ico?v=3" type="image/x-icon" />
       </head>
       <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <StoreProvider>
